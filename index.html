@@ -583,7 +583,7 @@
                         <div class="info-card poi-pet" style="--card-bg: url('bgtiles/yellow.png');">
                             <div class="card-header">
                                 <h3 class="color-pet">Pet Friendly</h3>
-                                <h4>Pet-friendly spots and cafes</h4>
+                                <h4>Pawsome spots to visit with pets</h4>
                             </div>
                             <div id="list-pet" class="card-content"></div>
                         </div>
@@ -1076,14 +1076,14 @@
                 id: "Half-Day",
                 name: "Half-Day Route",
                 colorClass: "color-halfday",
-                desc: "This half-day route is recommended for travellers who would like to explore the Katong neighbourhood to a decent extent, but perhaps would like to spend the night doing something else, or experience most of the area without feeling rushed. It involves much less walking than the full-day route, with fewer locations, so that it can be realistically completed from the morning to mid-afternoon while still getting to experience and explore Peranakan and other cultures to some extent. \n\n If your stay at Hotel Indigo includes the breakfast package at Baba Chews, we recommend that you make use of the included half-buffet breakfast. Else, you may choose to have a hearty, local breakfast at 328 Katong Laksa instead, or perhaps grab something light from i12 Katong. Follow the suggested route to visit temples, museums and murals, to your liking. If any locations pique your interest, feel free to make a detour there, or skip other locations due to time constraints or interests. \n\n For lunch, you may dine at Mr & Mrs Mohgan Super Crispy Roti Prata, which has highly affordable but extremely delicious prata (Indian fried dough). Of course, you may dine to your own liking.",
+                desc: "This half-day route is recommended for travellers who would like to explore the Katong neighbourhood to a decent extent, but perhaps would like to spend the night doing something else, or experience most of the area without feeling rushed. It involves much less walking than the full-day route, with fewer locations, so that it can be realistically completed from the morning to mid-afternoon while still getting to experience and explore Peranakan and other cultures to some extent. \n\n If your stay at Hotel Indigo includes the breakfast package at Baba Chews, we recommend that you make use of the included half-buffet breakfast. Else, you may choose to have a hearty, local breakfast at 328 Katong Laksa instead, or perhaps grab something light from i12 Katong. Follow the suggested route to visit temples, museums and murals, to your liking. If any locations pique your interest, feel free to make a detour there, or skip other locations due to time constraints or interests. \n\n For lunch, you may dine at Mr & Mrs Mohgan Super Crispy Roti Prata, which has highly affordable but extremely delicious prata (Indian fried dough). Of course, you may dine to your own liking, or if you have pets, check the pet route or visit a pet cafe on the map.",
                 img: "https://sg.tepcdn.com/public/usr/6xjasb/80cf82-BLD-THE-RED-HOUSE-AC-Copy.jpg" // Optional preview image for the route
             },
             fullday: {
                 id: "Full-Day",
                 name: "Full-Day Route",
                 colorClass: "color-fullday",
-                desc: "This full-day route is recommended for travellers who can afford to spend a full day experiencing the cultural heritage of Katong and Joo Chiat in their itinerary, exploring close to all attractions, shops and heritage sites in the Joo Chiat-Katong area. You will get to deeply explore and experience the unique Peranakan culture and more, all within a single day and a few kilometres of walking. \n\n If your stay at Hotel Indigo includes the breakfast package at Baba Chews, we recommend that you make use of the included half-buffet breakfast. Else, you may choose to have a hearty, local breakfast at 328 Katong Laksa instead. Follow the suggested route to visit temples, museums and murals, to your liking. If any locations pique your interest, feel free to make a detour there, or skip other locations due to time constraints or interests. \n\n You can eat at Guan Hoe Soon Restaurant for lunch and experience authentic Peranakan cuisine in the restaurant’s idyllic atmosphere, and at Sin Heng Claypot Bak Koot Teh for dinner, a restaurant in the Michelin Guide known for amazing claypot Bak Kut Teh with the perfect richness and mildness. Of course, you may dine to your own liking.",
+                desc: "This full-day route is recommended for travellers who can afford to spend a full day experiencing the cultural heritage of Katong and Joo Chiat in their itinerary, exploring close to all attractions, shops and heritage sites in the Joo Chiat-Katong area. You will get to deeply explore and experience the unique Peranakan culture and more, all within a single day and a few kilometres of walking. \n\n If your stay at Hotel Indigo includes the breakfast package at Baba Chews, we recommend that you make use of the included half-buffet breakfast. Else, you may choose to have a hearty, local breakfast at 328 Katong Laksa instead. Follow the suggested route to visit temples, museums and murals, to your liking. If any locations pique your interest, feel free to make a detour there, or skip other locations due to time constraints or interests. \n\n You can eat at Guan Hoe Soon Restaurant for lunch and experience authentic Peranakan cuisine in the restaurant’s idyllic atmosphere, and at Sin Heng Claypot Bak Koot Teh for dinner, a restaurant in the Michelin Guide known for amazing claypot Bak Kut Teh with the perfect richness and mildness. Of course, you may dine to your own liking, , or if you have pets, check the pet route or visit a pet cafe on the map.",
                 img: "https://media.timeout.com/images/105819890/image.jpg"
             },
             petroute: {
@@ -1097,7 +1097,7 @@
         // Custom ordered pathways for your itineraries using IDs
         const halfDayRoute = ["A1", "A2", "A9", "M11", "A8", "F12", "M10", "M8", "M9", "A10", "M4", "M7", "A11", "M6", "M5", "A12", "A13", "M1", "M2"];
         const fullDayRoute = ["A1", "F2", "A2", "A3", "A4", "M13", "F10", "A5", "A6", "A7", "A8", "M11", "A9", "M10", "M8", "M9", "A10", "M4", "M7", "F14", "A11", "M6", "M5", "A12", "A13", "M1", "M2"];
-        const petRoute = ["P1", "A1"]
+        const petRoute = ["A1", "A2", "A3", "A4", "M13", "P5", "F10", "P4", "P3", "A8", "A9", "M11", "P2", "M10", "M9", "M8", "A10", "M4", "P1", "M7", "A11", "M6", "M5", "P9", "M2", "A12", "A13", "M1", "P10"]
         // Map URL Dictionary
         const mapUrls = {
             0: "https://www.google.com/maps/d/u/0/embed?mid=1O8R2iXazYlO1zzcL6_EAKgxRWeeNMHQ&ehbc=2E312F", // None checked
@@ -1127,7 +1127,7 @@
             food: locations.filter(l => l.category === "food").map(l => l.id),
             pet: locations.filter(l => l.category === "pet").map(l => l.id)
         };
-        
+
         // Initialize lists on layout draw
         document.addEventListener("DOMContentLoaded", () => {
             renderLocationsView();
