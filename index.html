@@ -1,0 +1,1313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Map Dashboard</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: '-apple-system', BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+        }
+
+        /* Dashboard Split */
+        .dashboard-container {
+            display: grid;
+            grid-template-columns: 3fr 1fr;
+            height: 100vh;
+            width: 100vw;
+            background-color: #121212;
+        }
+
+        /* LEFT SIDE: Map & Controls */
+        .left-panel {
+            display: grid;
+            grid-template-rows: 1fr 45px;
+            height: 100vh;
+            background-color: #1e1e1e;
+        }
+
+        .map-wrapper {
+            width: 100%;
+            height: 100%;
+            background: #121212;
+            overflow: hidden; 
+            position: relative;
+        }
+
+        iframe {
+            width: 100%;
+            height: calc(100% + 60px); 
+            margin-top: -60px; 
+            border: none;
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        
+        .clickable-header {
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .clickable-header:hover {
+            opacity: 0.8;
+        }
+
+        .controls-card, .panel-footer {
+            background: #1e1e1e;
+            height: 45px;
+            padding: 0 16px;
+            display: flex;
+            align-items: center;
+            border-top: 1px solid #2d2d2d;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
+            z-index: 10;
+        }
+
+        .controls-card {
+            justify-content: space-between;
+        }
+
+        .legend-group {
+            display: flex;
+            gap: 20px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+        }
+
+        .legend-item input[type="checkbox"] {
+            accent-color: currentColor;
+            width: 14px;
+            height: 14px;
+        }
+
+        /* Theme Colors */
+        .color-attractions { color: #ff5252; } 
+        .color-murals { color: #69f0ae; }      
+        .color-food { color: #40c4ff; }
+        .color-pet {color: #ffdf52}        
+        .color-halfday { color: #ff9100; }     
+        .color-fullday { color: #b250ff; }
+        .color-petroute { color: #888888; }     
+
+        .refresh-btn {
+            background: linear-gradient(135deg, #333 0%, #222 100%);
+            color: #fff;
+            border: 1px solid #444;
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+        }
+
+        /* RIGHT SIDE: Layout */
+        .right-panel {
+            display: grid;
+            grid-template-rows: 1fr 45px; 
+            height: 100vh;
+            background-color: #121212;
+            border-left: 1px solid #2d2d2d;
+        }
+
+        .view-container {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .hidden { display: none !important; }
+
+        /* LOCATIONS VIEW */
+        .locations-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            height: 100%;
+            max-height: 100%; /* Prevents vertical stretching */
+        }
+
+        .column-left {
+            display: grid;
+            grid-template-rows: 1fr 1fr;
+            height: 100%;
+            max-height: 100%;
+            border-right: 1px solid #2d2d2d;
+            overflow: hidden; /* Traps children layouts */
+        }
+
+        .column-right {
+            display: grid;
+            grid-template-rows: 1fr 1fr;
+            height: 100%;
+            max-height: 100%;
+            overflow: hidden;
+        }
+
+        /* SUGGESTED ROUTES VIEW */
+        .routes-grid {
+            display: grid;
+            grid-template-rows: 1fr 1fr 1fr;
+            height: 100%;
+        }
+
+        /* Card Setup */
+        .info-card {
+            position: relative;
+            background: #181818;
+            padding: 12px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            border-bottom: 1px solid #2d2d2d;
+            overflow: hidden; /* Keeps the card header fixed at the top */
+        }
+
+        .info-card::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            
+            /* Pulls the image from the custom CSS variable inline property */
+            background-image: var(--card-bg); 
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            
+            /* MAKES IT FAINT: Adjust this scale (0 to 1) to make it louder or softer */
+            opacity: 0.15; 
+            
+            /* Ensures it sits behind the text rows and scrollbars */
+            z-index: 0; 
+            pointer-events: none; /* Prevents it from blocking mouse clicks */
+        }
+
+        .poi-attractions { border-left: 3px solid #ff5252; }
+        .poi-murals { border-left: 3px solid #69f0ae; }
+        .poi-food { border-left: 3px solid #40c4ff; }
+        .poi-pet { border-left: 3px solid #ffdf52; }
+        .route-half { border-left: 3px solid #ff9100; }
+        .route-full { border-left: 3px solid #b250ff; }
+        .route-pet { border-left: 3px solid #888888; }
+
+        .card-header {
+            position: relative;
+            z-index: 1;
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #2d2d2d;
+        }
+
+        .info-card h3 {
+            font-size: 0.85rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 2px;
+        }
+        
+        .info-card h4 {
+            font-size: 0.75rem;
+            color: #aaa;
+            font-weight: 500;
+        }
+
+        /* Clickable Item Lists */
+        .card-content {
+            position: relative;
+            z-index: 1;
+            font-size: 0.75rem;
+            overflow-y: auto;   /* Enables independent panel scrolling */
+            overflow-x: hidden; /* Blocks horizontal scroll artifacts */
+            flex: 1;
+            word-break: break-word;
+        }
+
+        .location-row {
+            display: flex;
+            align-items: center;
+            padding: 6px 4px;
+            margin-bottom: 4px;
+            background: #222;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+            width: 100%; /* Keeps rows bound to the container limits */
+        }
+
+        .location-row:hover {
+            background: #2a2a2a;
+            transform: translateX(2px);
+        }
+
+        .id-badge {
+            font-weight: 800;
+            font-size: 0.7rem;
+            padding: 2px 8px; /* Slightly wider side padding */
+            border-radius: 3px;
+            margin-right: 8px;
+            background: #121212;
+            min-width: 38px;  /* INCREASED from 30px to 38px to comfortably fit "M13" */
+            text-align: center;
+            flex-shrink: 0;   /* CRITICAL: Prevents the layout from squeezing the badge */
+        }
+
+        /* Route Pathway Arrow styling */
+        .route-svg-arrow {
+            color: #438025; /* Faint gray color to match the dark dashboard aesthetics */
+            transition: color 0.2s;
+        }
+
+        .route-arrow-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 2px 0;
+            width: 100%;
+        }
+
+        .card-content:hover .route-svg-arrow {
+            color: #61ba34;
+        }
+
+        /* FOOTER TABS */
+        .panel-footer {
+            padding: 0;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .tab-btn {
+            height: 100%;
+            background: #1e1e1e;
+            border: none;
+            color: #777;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            border-right: 1px solid #2d2d2d;
+        }
+
+        .tab-btn.active {
+            color: #fff;
+            background: #121212;
+            border-top: 2px solid #fff;
+        }
+
+        /* INTERACTIVE POPUP (MODAL) */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(4px);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-overlay.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-card {
+            background: #1e1e1e;
+            width: 90%;
+            max-width: 450px;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #333;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            position: relative;
+        }
+        
+        .modal-card::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            
+            /* Path to your tile or background image */
+            background-image: url('bgtiles/mixed.webp'); 
+            background-repeat: repeat; /* Or 'no-repeat' if using a single image */
+            background-position: center;
+            background-size: cover;    /* Or omit if using repeating seamless tiles */
+            
+            opacity: 0.05; /* Faint background overlay */
+            z-index: 0;    /* Sits behind all modal content */
+            pointer-events: none;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.5);
+            border: none;
+            color: white;
+            font-size: 1.0rem;
+            cursor: pointer;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            align-items: center;
+            justify-content: center;
+            z-index: 102;
+        }
+
+        .modal-img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            background: #2d2d2d;
+        }
+
+        .modal-body {
+            position: relative;
+            z-index: 1; /* Elevates text content above the background layer */
+            padding: 16px;
+            overflow-y: auto; /* Handles vertical scrolling */
+            flex: 1;
+            background: transparent; /* Allows fixed background layer underneath to shine through */
+        }
+
+        /* Custom dark scrollbar for the modal body */
+        .modal-body::-webkit-scrollbar {
+            width: 6px;
+        }
+        .modal-body::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+        }
+        .modal-body::-webkit-scrollbar-thumb {
+            background: #444;
+            border-radius: 3px;
+        }
+        .modal-body::-webkit-scrollbar-thumb:hover {
+            background: #666;
+        }
+
+        .modal-body::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            /*
+            /* Hardcoded background image specifically for the popup text box
+            background-image: url('bgtiles/mixed.webp'); 
+            background-size: cover;
+            background-position: center;
+            background-repeat: repeat;
+            
+            /* Faint opacity for the popup text box background
+            opacity: 0.1; 
+            */
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .modal-title-wrap {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .modal-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+
+        .modal-desc {
+            position: relative;
+            z-index: 1;
+            font-size: 0.85rem;
+            color: #ccc;
+            line-height: 1.5;
+        }
+
+        .modal-nav-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0, 0, 0, 0.6);
+            border: none;
+            color: white;
+            cursor: pointer;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            
+            /* Perfect Flexbox Centering for the child SVG element */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            
+            z-index: 105;
+            transition: background 0.2s, opacity 0.2s;
+        }
+
+        .modal-nav-btn:hover {
+            background: rgba(40, 40, 40, 0.8);
+        }
+
+        .modal-nav-btn:disabled {
+            opacity: 0.2;
+            cursor: not-allowed;
+        }
+
+        .modal-nav-prev {
+            left: -50px; /* Positions arrows slightly outside the card boundaries */
+        }
+
+        .modal-nav-next {
+            right: -50px;
+        }
+
+        /* Adjust layout responsively so arrows don't clip off smaller screens */
+        @media (max-width: 600px) {
+            .modal-nav-prev { left: 10px; }
+            .modal-nav-next { right: 10px; }
+        }
+
+        /* Scrollbars */
+        .card-content::-webkit-scrollbar { width: 4px; }
+        .card-content::-webkit-scrollbar-track { background: #121212; }
+        .card-content::-webkit-scrollbar-thumb { background: #333; }
+
+        #map-embed {
+            transition: opacity 0.2s ease-in-out;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-container">
+        
+        <div class="left-panel">
+            <div class="map-wrapper">
+                <iframe id="map-embed" src="https://www.google.com/maps/d/u/0/embed?mid=1fue_eUXqnqhiOwT2H0CK53fKEh88gas&ehbc=2E312F"></iframe>
+            </div>
+            
+            <div class="controls-card">
+                <div class="legend-group">
+                    <label class="legend-item color-attractions">
+                        <input type="checkbox" id="cat-attractions" onchange="updateMap()" checked> Attractions
+                    </label>
+                    <label class="legend-item color-murals">
+                        <input type="checkbox" id="cat-murals" onchange="updateMap()"> Murals
+                    </label>
+                    <label class="legend-item color-food">
+                        <input type="checkbox" id="cat-food" onchange="updateMap()"> Food
+                    </label>
+                    <label class="legend-item color-pet">
+                        <input type="checkbox" id="cat-pet" onchange="updateMap()"> Pet
+                    </label>
+                </div>
+                <button class="refresh-btn" onclick="updateMap()">Refresh Map</button>
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <div class="view-container">
+                
+                <div id="view-locations" class="locations-grid">
+                    <div class="column-left">
+                        <div class="info-card poi-attractions" style="--card-bg: url('bgtiles/red.png');">
+                            <div class="card-header clickable-header" onclick="openRouteModal('attractions')">
+                                <h3 class="color-attractions">Attractions</h3>
+                                <h4>Heritage, Architecture and Shops to explore</h4>
+                            </div>
+                            <div id="list-attractions" class="card-content"></div>
+                        </div>
+                        
+                        <div class="info-card poi-murals" style="--card-bg: url('bgtiles/green.png');">
+                            <div class="card-header clickable-header" onclick="openRouteModal('murals')">
+                                <h3 class="color-murals">Murals</h3>
+                                <h4>Instagram-perfect wall artworks</h4>
+                            </div>
+                            <div id="list-murals" class="card-content"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="column-right">
+                        <div class="info-card poi-food" style="--card-bg: url('bgtiles/blue.png');">
+                            <div class="card-header clickable-header" onclick="openRouteModal('food')">
+                                <h3 class="color-food">Food</h3>
+                                <h4>Famous Traditional Food</h4>
+                            </div>
+                            <div id="list-food" class="card-content"></div>
+                        </div>
+                        <div class="info-card poi-pet" style="--card-bg: url('bgtiles/yellow.png');">
+                            <div class="card-header">
+                                <h3 class="color-pet">Pet Friendly</h3>
+                                <h4>Pawsome spots to visit with pets</h4>
+                            </div>
+                            <div id="list-pet" class="card-content"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="view-routes" class="routes-grid hidden">
+                    <div class="info-card route-half" style="--card-bg: url('bgtiles/orange.png');">
+                        <div class="card-header clickable-header" onclick="openRouteModal('halfday')">
+                            <h3 class="color-halfday">Half-Day Route</h3>
+                            <h4>2km · 6 hours · 19 locations</h4>
+                        </div>
+                        <div id="route-halfday-content" class="card-content"></div>
+                    </div>
+                    
+                    <div class="info-card route-full" style="--card-bg: url('bgtiles/purple.png');">
+                        <div class="card-header clickable-header" onclick="openRouteModal('fullday')">
+                            <h3 class="color-fullday">Full-Day Route</h3>
+                            <h4>3.2km · 10 hours · 27 locations</h4>
+                        </div>
+                        <div id="route-fullday-content" class="card-content"></div>
+                    </div>
+
+                    <div class="info-card route-pet" style="--card-bg: url('bgtiles/gray.png');">
+                        <div class="card-header clickable-header" onclick="openRouteModal('petroute')">
+                            <h3 class="color-petroute">Pet-Friendly Route</h3>
+                            <h4>2.2km · 8 hours · n locations</h4>
+                        </div>
+                        <div id="route-petroute-content" class="card-content"></div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="panel-footer">
+                <button id="tab-locations" class="tab-btn active" onclick="switchView('locations')">Locations</button>
+                <button id="tab-routes" class="tab-btn" onclick="switchView('routes')">Suggested Routes</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="popup-modal" class="modal-overlay" onclick="closeModal(event)">
+        <div style="position: relative; max-width: 450px; width: 90%;">
+            
+            <button id="modal-prev-btn" class="modal-nav-btn modal-nav-prev" onclick="navigateModal(-1)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+            </button>
+
+            <button id="modal-next-btn" class="modal-nav-btn modal-nav-next" onclick="navigateModal(1)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+            </button>
+
+            <div class="modal-card" style="width: 100%; max-width: 100%;">
+                <button class="modal-close" onclick="closeModal(event, true)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+                <img id="modal-img" class="modal-img" src="" alt="Location Image">
+                <div class="modal-body">
+                    <div class="modal-title-wrap">
+                        <span id="modal-badge" class="id-badge"></span>
+                        <h2 id="modal-title" class="modal-title"></h2>
+                    </div>
+                    <p id="modal-desc" class="modal-desc"></p>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+
+    <script>
+        // Centralized master list generated from document data
+        const locations = [
+            // --- ATTRACTIONS (13 items) ---
+            { 
+                id: "A1", 
+                name: "The Red House", 
+                category: "attractions", 
+                colorClass: "color-attractions", 
+                desc: "Just a two minutes' stroll from your room, in the heart of Katong, The Red House is a stunning piece of heritage. Once a beloved local bakery, it has since been beautifully restored. You can expect an intimate encounter with its rich culture and history, explore unique retail shops inside this piece of living history, or immerse yourself in the rich culture of the heritage gallery.", 
+                img: "https://wiki.sg/images/thumb/b/b5/The_Katong_Red_House_2018.jpg/450px-The_Katong_Red_House_2018.jpg" 
+            },
+            { 
+                id: "A2", 
+                name: "Sri Senpaga Vinayagar Temple", 
+                category: "attractions", 
+                colorClass: "color-attractions", 
+                desc: "Located right around the corner from the hotel, Sri Senpaga Vinayagar Temple is one of Singapore's most vibrant and welcoming landmarks. This historic Hindu temple is famous for its stunning South Indian architecture, featuring a grand 21-meter-tall entrance tower and beautiful stone carvings. Take a quick walk over to experience the peaceful atmosphere, colourful artistry, and its famous \"musical pillars\" that produce melodic notes when tapped!", 
+                img: "https://www.visitsingapore.com/content/dam/visitsingapore/neighbourhoods/katong-joo-chiat/sri-senpaga-vinayagar-temple-masthead-desktop.jpg" 
+            },
+            { 
+                id: "A3", 
+                name: "Eurasian Heritage Gallery", 
+                category: "attractions", 
+                colorClass: "color-attractions", 
+                desc: "Learn about the history of the Eurasian community in Singapore across the three galleries of this quaint heritage gallery. Eurasians are one of Singapore's smallest, but earliest communities, known for their hybrid traditions of East and West. You can also learn more about notable individuals from the community, from Olympic gold medallist Joseph Schooling to pioneering politicians like Benjamin Sheares.", 
+                img: "https://www.visitsingapore.com/content/dam/visitsingapore/neighbourhoods/katong-joo-chiat/page-image-eurasian-heritage-gallery_746x560.jpg" 
+            },
+            { 
+                id: "A4", 
+                name: "Kuan Im Kuan Ti Kong Temple (观音关帝宮)", 
+                category: "attractions", 
+                colorClass: "color-attractions", 
+                desc: "Kuan Im Kuan Ti Kong Temple upholds a unique three in one combination consisting of Buddhism, Taoism and Confucianism, capturing and consolidating the essence of these three religions into \"Xian Tian Sect.\"", 
+                img: "https://www.kuanimtng.org.sg/UploadedImg/images/about01.jpg" 
+            },
+            { 
+                id: "A5", 
+                name: "Kuan Im Tng Temple (Joo Chiat)", 
+                category: "attractions", 
+                colorClass: "color-attractions", 
+                desc: "Kwan Im Thong Hood Cho Temple is a well-known Buddhist temple on Waterloo Street dedicated to Guan Yin (观音), the Goddess of Mercy. Famous for large crowds of worshippers praying for blessings, health, and good fortune, the temple is also recognised for its charitable work and traditional Chinese-style architecture.", 
+                img: "https://p1935954.neocities.org/img/kitt_4.jpg" 
+            },
+            { 
+                id: "A6", 
+                name: "The Intan", 
+                category: "attractions", 
+                colorClass: "color-attractions", 
+                desc: "The Intan is an award-winning private home museum dedicated to Peranakan culture. Housing a dazzling collection of over 5,000 antique treasures from beadwork and jewelry to colorful porcelain, this hidden gem offers an incredibly intimate look into local heritage. Your visit is guided by the owner himself and includes authentic Peranakan tea or dinner, making it a truly unique and memorable experience.", 
+                img: "https://www.visitsingapore.com/content/dam/visitsingapore/whats-happening/events/1354x916_masthead_card_img_theintan.png" 
+            },
+            { 
+                id: "A7", 
+                name: "Lotus Sanctuary", 
+                category: "attractions", 
+                colorClass: "color-attractions", 
+                desc: "Situated in the heart of Katong, Lotus Sanctuary is a beautiful reminder of Singapore's rich Peranakan culture, with a twist of modern convenience. It integrates renovated 1930's conservation houses with more modern apartments and amenities to create a truly bespoke property like no other. While you may not be looking to live here, the iconic, neat row of renovated white-painted shophouses outside is certainly worth a look.", 
+                img: "https://www.lotus-sanctuary.com.sg/wp-content/uploads/2022/06/WRT05484.jpg" 
+            },
+            { 
+                id: "A8", 
+                name: "Famous Peranakan Houses", 
+                category: "attractions", 
+                colorClass: "color-attractions", 
+                desc: "These iconic, pastel-hued houses date back to the 1920s, and provide the perfect opportunity for you to snap a photo or two. Admire the fusion of Chinese, Malay, and European influences, offering a glimpse into the unique identity of this cherished community. Look out for elaborate motifs and traditional Peranakan architecture.", 
+                img: "https://www.visitsingapore.com/content/dam/visitsingapore/neighbourhoods/katong-joo-chiat/page-image-colourful-shophouse_746x560.jpg" 
+            },
+            { 
+                id: "A9", 
+                name: "Singapore Peranakan Mansion Museum", 
+                category: "attractions", 
+                colorClass: "color-attractions", 
+                desc: "The Peranakan Mansion Museum is a vibrant treasure trove showcasing a unique blend of Chinese, Malay and European cultures. You can dive into rich traditions, marvel at historical artifacts, and participate in hands-on art workshops to learn more about classic Peranakan architecture. It is an essential and culturally immersive stop for anyone looking to understand the local identity.", 
+                img: "https://media-cdn.tripadvisor.com/media/attractions-splice-spp-720x480/15/7e/ad/e8.jpg" 
+            },
+            { 
+                id: "A10", 
+                name: "Black Earth Art Museum", 
+                category: "attractions", 
+                colorClass: "color-attractions", 
+                desc: "Located in the charming Joo Chiat neighbourhood, Black Earth Art Museum is a haven for oriental art lovers. It specialises in traditional Chinese ink and wash paintings as well as intricate calligraphy, offering an authentic look into the art forms. Owner Ng Ngeng Hee likes to champion both Singaporean and East Asian artists, making the museum a culturally rich stop during your neighbourhood visit.", 
+                img: "https://thumbs.dreamstime.com/b/singapore-black-earth-art-museum-joo-chiat-katong-district-feb-h-view-located-road-marine-parade-area-440029906.jpg" 
+            },
+            { 
+                id: "A11", 
+                name: "Cat Socrates", 
+                category: "attractions", 
+                colorClass: "color-attractions", 
+                desc: "Cat Socrates is known for its quirky cat-themed branding, locally designed products, and unique homeware, stationery, and souvenirs. The shop promotes local artists and sustainable products, creating a cosy and creative atmosphere that attracts both locals and tourists. Expect to wander in a variety of gifts in a cluttered but cosy environment and perhaps pick one for your friends back at home.", 
+                img: "https://dynamic-media-cdn.tripadvisor.com/media/photo-o/31/85/4f/d1/caption.jpg?w=900&h=-1&s=1" 
+            },
+            { 
+                id: "A12", 
+                name: "Rumah Bebe", 
+                category: "attractions", 
+                colorClass: "color-attractions", 
+                desc: "Rumah Bebe is a vibrant boutique dedicated to Peranakan culture. Inside, you can view and shop a collection of traditional beaded slippers, intricate embroidery, and authentic designs. Beyond shopping, it offers tours and hands-on beading workshops, making it a one-of-a-kind experience of the local artistry.", 
+                img: "https://web.archive.org/web/20230616142639im_/https://www.rumahbebe.com/wp-content/uploads/2023/05/image4-4-scaled.jpeg" 
+            },
+            { 
+                id: "A13", 
+                name: "Kim Choo Kueh Chang", 
+                category: "attractions", 
+                colorClass: "color-attractions", 
+                desc: "Kim Choo Kueh Chang is a famous traditional food shop best known for its handmade Nonya rice dumplings (kueh chang). Established in the 1940s, the business is closely linked to Peranakan culture and also sells traditional snacks, kueh, and souvenirs that showcase Singapore's local heritage and flavours.", 
+                img: "https://eatbook.sg/wp-content/uploads/2022/12/Kim-Choo-Kueh-Chang-store-front.jpg" 
+            },
+
+            // --- FOOD (14 items) ---
+            { 
+                id: "F1", 
+                name: "Geylang Serai Market and Food Centre", 
+                category: "food", 
+                colorClass: "color-food", 
+                desc: "Geylang Serai is a well-known cultural district, closely associated with the Malay community and heritage. The area is famous for its traditional food, bustling markets, and festive Hari Raya celebrations, making it an important cultural and social hub. The food centre offers a wide variety of hawker stalls to try, while the wet market lets visitors experience a traditional shopping style in Singapore that is diminishing but not forgotten.", 
+                img: "https://www.singaporetravelhub.com/wp-content/uploads/2017/07/Geylang-Serai-Market-01.jpg" 
+            },
+            { 
+                id: "F2", 
+                name: "328 Katong Laksa", 
+                category: "food", 
+                colorClass: "color-food", 
+                desc: "328 Katong Laksa is a famous Singaporean eatery best known for its rich and spicy Katong-style laksa, a noodle soup made with coconut milk, prawns and cockles. Its noodles are cut short so they can be eaten entirely with a spoon, making it one of the most iconic local food experiences in Singapore. They also serve packets of chilli sauce separately, so that those more averse towards spice may enjoy the taste of the laksa soup without suffering from the heatiness, while spice enjoyers may chase a more heaty experience.", 
+                img: "https://res.klook.com/images/fl_lossy.progressive,q_65/c_fill,w_1295,h_720/activities/cof5coag425hkub8juwf/328KatongLaksadiEastCoastRoad.webp" 
+            },
+            { 
+                id: "F3", 
+                name: "Ang Moh Wanton Mee", 
+                category: "food", 
+                colorClass: "color-food", 
+                desc: "Ang Moh Wanton Mee is a popular local noodle stall known for its springy egg noodles tossed in a savoury sauce and served with char siew, dumplings and crispy wantons. It is especially loved for its old-school flavour and generous portions.", 
+                img: "https://sethlui.com/wp-content/uploads/2025/08/ang-moh-noodle-house-storefront.webp" 
+            },
+            { 
+                id: "F4", 
+                name: "Birds of Paradise Gelato Boutique", 
+                category: "food", 
+                colorClass: "color-food", 
+                desc: "Birds of Paradise Gelato Boutique is an artisanal dessert café famous for botanical-inspired gelato flavours such as lychee raspberry and white chrysanthemum. Its thyme waffle cones and elegant presentation make it a favourite dessert spot in Singapore.", 
+                img: "https://danielfooddiary.com/wp-content/uploads/2023/12/Birds-of-Paradise-Gelato-Boutique--Holland-Village-scaled.jpg" 
+            },
+            { 
+                id: "F5", 
+                name: "Da Dong Prawn Noodles", 
+                category: "food", 
+                colorClass: "color-food", 
+                desc: "Located along Joo Chiat Road, this prawn mee stall carries over five decades of history, now run by the second generation of its founding family. The prawn noodle soup is often described as herbal, without the standard heavy taste of prawn; \"lighter than expected, almost delicate, with a subtle sweetness, with a clear prawn and pork undertone, but not as bold or rich as some might imagine it to be.\" If you're looking for a polished version of a traditional dish, this may be the place for you, with a clear emphasis on freshness and a lighter, perhaps more enjoyable flavour profile.", 
+                img: "https://sethlui.com/wp-content/uploads/2018/12/Da-Dong-Prawn-Noodle-17-800x533.jpg" 
+            },
+            { 
+                id: "F6", 
+                name: "Chilli Padi Nonya Restaurant", 
+                category: "food", 
+                colorClass: "color-food", 
+                desc: "Chilli Padi Nonya Restaurant is a well-known Peranakan restaurant serving traditional Nonya dishes that blend Chinese and Malay flavours. Its rich curries, sambal dishes and ayam buah keluak showcase Singapore's Peranakan food heritage. This restaurant is worth eating at for tourists visiting Katong to experience the rich Peranakan heritage.", 
+                img: "https://qul.imgix.net/1427ba49-0c45-4ef7-b602-865424be76aa/492822_sld.jpg" 
+            },
+            { 
+                id: "F7", 
+                name: "Eng Seng Restaurant", 
+                category: "food", 
+                colorClass: "color-food", 
+                desc: "Eng Seng Restaurant is an amazing neighbourhood spot specialising in Chinese seafood. Famous among locals for over 30 years, it is best known for serving some of the best black pepper crabs in Singapore, which is widely considered a famous, even national dish. As it operates in an authentic coffeeshop setting, it gives a true taste of local dining culture.", 
+                img: "https://cdn-sg.orstatic.com/userphoto/doorphoto/2/1YW/00E07KF35B540AB2B420C5lv.jpg" 
+            },
+            { 
+                id: "F8", 
+                name: "Five Star Kampung Chicken Rice & Kitchen", 
+                category: "food", 
+                colorClass: "color-food", 
+                desc: "Five Star Kampung Chicken Rice & Kitchen specialises in tender kampung chicken. Kampung chickens are a free-range breed raised without antibiotics or growth promoters, so that pure flavours emerge through simple yet masterful slow cooking, giving true-tasting, aromatic, fork-tender, succulent chicken, achieved without shortcuts or synthetics. They also emphasise usage of healthier and leaner kampung chicken, which is low in cholesterol, has less fat and more fibre.", 
+                img: "https://ourhound.com/wp-content/uploads/2020/03/ourhound-directions-how-to-go-DT5-Beauty-World-MRT-Station-Exit-B-10-five-star-chicken-02-1024x768.jpg" 
+            },
+            { 
+                id: "F9", 
+                name: "Dunman Food Centre", 
+                category: "food", 
+                colorClass: "color-food", 
+                desc: "Dunman Food Centre is a local hawker centre offering a wide range of affordable Singaporean food such as satay, noodles and traditional desserts. \"Dunman\" was named after Thomas Dunman who was the first Commissioner of Police in Singapore during the British Colonial period. While it is not a very big food centre with less than 30 stalls, there are a couple of famous stalls selling Duck Rice, Rojak, Wanton Noodles, Steamed Fish Head, and Tau Kwa Pau. It is popular among residents for its authentic neighbourhood atmosphere.", 
+                img: "https://scontent.fsin14-2.fna.fbcdn.net/v/t39.30808-6/473685682_1109160380909304_7025064155024403846_n.jpg?stp=dst-jpg_s960x960_tt6&_nc_cat=107&ccb=1-7&_nc_sid=cc71e4&_nc_ohc=DBjuGWOPnJkQ7kNvwH_cxtq&_nc_oc=AdrsK-IMXoeFJIPdWiPC7aQG0Pt6VJG6b_Qlgw50Ap3Gsc_6N_46u0RIF4lsf5xqdtU&_nc_zt=23&_nc_ht=scontent.fsin14-2.fna&_nc_gid=zl9fvCC-c329cj4vQ4DVGA&_nc_ss=7b289&oh=00_Af6syClm3_ql581QKOveaHVpqFvlyQ9TcCyLBhBNR1AvvQ&oe=6A120EA6" 
+            },
+            { 
+                id: "F10", 
+                name: "Guan Hoe Soon Restaurant", 
+                category: "food", 
+                colorClass: "color-food", 
+                desc: "Guan Hoe Soon Restaurant is one of Singapore's oldest Peranakan restaurants, serving authentic Peranakan cuisine in the Joo Chiat area since 1953. The restaurant is set in an idyllic atmosphere where the main concerns are the quality and authenticity of the food served, and it aims to not spare any effort in preserving the original taste of Peranakan cuisine, using the freshest ingredients and a select choice of spices in preparing delicacies.", 
+                img: "https://guanhoesoon.com/wp-content/uploads/2022/10/200-GHS-1536x1100.jpg" 
+            },
+            { 
+                id: "F11", 
+                name: "Kway Guan Huat Joo Chiat Popiah", 
+                category: "food", 
+                colorClass: "color-food", 
+                desc: "Kway Guan Huat Joo Chiat Popiah takes great pride in their long family tradition of making popiah skin in Singapore, painstakingly following a family recipe handed down from forefathers in Fujian province, China, for over 80 years. The restaurant organises regular popiah tours for both local and tourist groups alike. Participants can watch popiah masters twirl dollops of dough in mid-air and coax paper-thin popiah skins out of baked dough on searing hot pans. You can try their chewy popiah skins and delight in the scrumptious goodness of tasty and juicy popiah fillings.", 
+                img: "https://static.wixstatic.com/media/90ffaa_c631d803c99b4fb39987810283ea8233~mv2.jpg/v1/crop/x_3,y_0,w_1011,h_422/fill/w_1011,h_422,al_c,q_85,enc_avif,quality_auto/HOME%20BANNER.jpg" 
+            },
+            { 
+                id: "F12", 
+                name: "Mr & Mrs Mohgan Super Crispy Roti Prata", 
+                category: "food", 
+                colorClass: "color-food", 
+                desc: "Mr & Mrs Mohgan Super Crispy Roti Prata specialises in, well, Roti Prata (traditional Indian fried dough), affordably priced but very deliciously made. A piece of Plain Prata starts at $1.50, while popular favourites like Egg Prata ($2) and Cheese Prata ($2.50) remain wallet-friendly. The prata have flaky layers with a light browning around the edges, made to order, allowing the natural scent of fresh dough to shine through, resulting in a perfectly crisp exterior paired with a soft, fluffy interior that can be pulled apart effortlessly. Unlike many prata that go too far with crispiness and become biscuit-like, their prata is described as maintaining a consistent balance between a doughy core and a crackling bite.", 
+                img: "https://eatbook.sg/wp-content/uploads/2026/02/mr-and-mrs-mohgan-crispy-prata-flatlay.jpg" 
+            },
+            { 
+                id: "F13", 
+                name: "Janggut Laksa @ Roxy Square", 
+                category: "food", 
+                colorClass: "color-food", 
+                desc: "Janggut Laksa @ Roxy Square is a heritage laksa stall famous for its Katong-style laksa with rich coconut broth and short noodles eaten using only a spoon. The stall is well known for preserving one of Singapore's oldest laksa recipes, and many customers describe it as better than the famous 328 Katong Laska.", 
+                img: "https://s.yimg.com/os/en/sethlui.com/73cb3a39d491baaf8e87ee5cea2e94e1" 
+            },
+            { 
+                id: "F14", 
+                name: "Sin Heng Claypot Bak Koot Teh", 
+                category: "food", 
+                colorClass: "color-food", 
+                desc: "Sin Heng Claypot Bak Koot Teh has been around for over 40 years and is now run by the second generation owner, and was even in the Michelin Guide. The quality of the food is apparent in the guide: \"As its name suggests, bak kut teh with pepper and garlic served in a claypot is their speciality - the broth is rich, but not overpoweringly spicy and the pork ribs are tender and flavoursome. Sesame oil chicken in claypot is another highlight. The wings are succulent and the sauce delivers nutty aromas and mild sweetness. Also try local stir-fries.\"", 
+                img: "https://danielfooddiary.com/wp-content/uploads/2025/05/sinheng6.jpg" 
+            },
+
+            // --- MURALS (13 items) ---
+            { 
+                id: "M1", 
+                name: "Medley Alley", 
+                category: "murals", 
+                colorClass: "color-murals", 
+                desc: "Located along the side alley next to Rumah Bebe, this artwork by Nicia Lam, Yullis Lam, Novena Angela and Valerie Neo depicts Majolica tiles, the decorative Peranakan tiles found on the shophouses, each tile with its own design. Viewed from the front of the alley, these tiles become shaped like wings where you can snap a photo.", 
+                img: "https://i0.wp.com/thecuriousjournal.com/wp-content/uploads/2022/04/Street-Art-Joo-Chiat.jpg?resize=768%2C960&ssl=1" 
+            },
+            { 
+                id: "M2", 
+                name: "Murals behind Rumah Bebe", 
+                category: "murals", 
+                colorClass: "color-murals", 
+                desc: "If you continue walking down Medley Alley into the back of the shophouses, you will find two more pieces in the back alley behind Rumah Bebe. One depicts ladies dressed in Kebayas (traditional Southeast Asian garments), and the other, right behind Kim Choo Kueh Chang, depicts a girl with dumpling balloons called Dumpling girl by Safaruddin Abdul Hamid aka Dyn.", 
+                img: "murals/m2.png" 
+            },
+            { 
+                id: "M3", 
+                name: "Katong-Joo Chiat Public Art Trail", 
+                category: "murals", 
+                colorClass: "color-murals", 
+                desc: "This mural is part of the Katong-Joo Chiat Public Art Trail, which showcases artwork blending heritage and contemporary vision. The name Katong originates from the Malay word for a now-extinct species of sea turtle or the rippling effect of a sea mirage visible from the shoreline. Joo Chiat gets its name from Chew Joo Chiat (1857-1926), a wealthy Chinese immigrant and landowner in early 20th-century Singapore. Walking down the trail, one can find a row of vibrant back doors of many traditional houses, which have occupants that can't legally change the traditional look of their back doors!", 
+                img: "murals/m3.png" 
+            },
+            { 
+                id: "M4", 
+                name: "A History of Healing", 
+                category: "murals", 
+                colorClass: "color-murals", 
+                desc: "Right next to the Black Earth Art Museum are multiple murals next to a carpark entrance. They have evolved over the years, and, most recently, are vibrant depictions of cats and \"A History of Healing\". The building with the second mural is actually the former Joo Chiat Maternal and Child Health (MCH) Clinic, first established in 1931 as one of Singapore's early public health facilities, originally established to lower the infant mortality rate in early 20th-century Singapore. The conserved colonial building is now a state property and is no longer an active medical facility, with the mural \"A History of Healing\" to commemorate its past.", 
+                img: "murals/m4.png" 
+            },
+            { 
+                id: "M5", 
+                name: "Old Katong Mural", 
+                category: "murals", 
+                colorClass: "color-murals", 
+                desc: "This seemingly unnamed artwork is located on a building wall behind the Alibabar restaurant near the i12 Katong mall, capturing the essence of \"old Katong,\" featuring scenes from traditional kopitiams (coffee shops) and the evolution of the area. It even includes portraits of Chew Joo Chiat, local cats, and references to landmarks like the Red House.", 
+                img: "murals/m5.jpeg" 
+            },
+            { 
+                id: "M6", 
+                name: "Anatomical Reverberation; Recollections of you from a distance", 
+                category: "murals", 
+                colorClass: "color-murals", 
+                desc: "An abstract piece created by local artist Soph O (Sophia Ong) for the 2023 ARTWALK festival, it attempts to demonstrate how memories and emotions resonate over time and how relationships with them change when stories are retold. \"Both narrator and listener are often denied access to the true history as memory is easily distorted. Recollections blur and intertwine.\"", 
+                img: "murals/m6.jpeg" 
+            },
+            { 
+                id: "M7", 
+                name: "Katong-Joo Chiat Mingle", 
+                category: "murals", 
+                colorClass: "color-murals", 
+                desc: "Katong-Joo Chiat Mingle is a large mural on the side of the Joo Chiat Community Club which expresses the cultural heritage of Joo Chiat and surrounds. The artwork was commissioned as part of the Heritage Activation Node initiative by the National Heritage Board. It depicts colourful terrace houses, traditional markets, food stalls, and cultural clothing, which are expressed all along Joo Chiat Road.", 
+                img: "murals/m7.jpeg" 
+            },
+            { 
+                id: "M8", 
+                name: "Peonies and Patterns", 
+                category: "murals", 
+                colorClass: "color-murals", 
+                desc: "This mural pays homage to the history and culture of Katong/Joo Chiat through elements to the Peranakan culture such as the Nyonya kebaya, beaded slippers and Peranakan motif tiles, depicted as clothing on characters in the mural and as background patterns.", 
+                img: "murals/m8.jpeg" 
+            },
+            { 
+                id: "M9", 
+                name: "Tom and Jerry", 
+                category: "murals", 
+                colorClass: "color-murals", 
+                desc: "Created by local street artist The Demster (Adam Wang) and commissioned by Cartoon Network Asia, the mural depicts the characters chasing each other while surrounded by local Singaporean culinary items like durian and laksa, as a playful traditional addition to the well-known cartoon characters.", 
+                img: "murals/m9.jpeg" 
+            },
+            { 
+                id: "M10", 
+                name: "The Phoenix", 
+                category: "murals", 
+                colorClass: "color-murals", 
+                desc: "A decorative and auspicious motif used by the Peranakans as well as a symbol of rebirth and regeneration in western traditions, The Phoenix reflects both the continuation of life in flames of change and the continuation of living life during a pandemic. It also highlights resilience and the will to persevere, in the hopes that we will emerge stronger than before in a post-pandemic world.", 
+                img: "murals/m10.jpeg" 
+            },
+            { 
+                id: "M11", 
+                name: "Unknown Mural", 
+                category: "murals", 
+                colorClass: "color-murals", 
+                desc: "Next to the well-known row of pastel peranakan houses, there is a seemingly unknown mural which depicts a boy jumping on a series of round objects, possibly planets. It is worth checking out, as it cannot be found anywhere online.", 
+                img: "murals/m11.jpeg" 
+            },
+            { 
+                id: "M12", 
+                name: "Unknown Murals 2", 
+                category: "murals", 
+                colorClass: "color-murals", 
+                desc: "Next to what used to be a 7-Eleven, there are now two murals, one depicting family life of sorts, and the other depicting a detailed fish. These murals are unknown online, but have unique art styles worth visiting.", 
+                img: "murals/m12.jpeg" 
+            },
+            { 
+                id: "M13", 
+                name: "Radiance 鳳凰來義", 
+                category: "murals", 
+                colorClass: "color-murals", 
+                desc: "Created by Eunice Hannah Lim, along with Shaping Hearts artist Christina Lau Lay Lian, this mural brings mythology, heritage craft, and inclusive art into Joo Chiat's cultural landscape. Featuring phoenixes and a traditional lantern, the mural pays tribute to lantern-making, once closely tied to festivals, faith, and community life. Its inscription transforms the familiar phrase 鳳凰來儀 into 鳳凰來義, replacing ceremonial propriety with righteousness in response to the neighbouring Lord Guan temple. Through this gesture, the mural connects craft, virtue, resilience, and creative renewal.", 
+                img: "murals/m13.jpg" 
+            },
+            // --- PET (10 items) ---
+            {
+                id: "P1",
+                name: "Heads Up For Tails",
+                category: "pet",
+                colorClass: "color-pet",
+                desc: "Heads Up For Tails is a spacious pet-lifestyle store located along Joo Chiat Road. The shop carries a wide selection of pet food, treats, toys, clothing, walking equipment, accessories and grooming products for dogs and cats. Its bright and welcoming interior gives pets and their owners plenty of space to explore the different products together. Visitors who need to restock their pet supplies or purchase a small gift for their furry companion can make this a convenient stop during their walk around Joo Chiat.",
+                img: "https://cdn.shopify.com/s/files/1/0795/1977/7069/files/Joo_Chiat_Road.jpg"
+            },
+            {
+                id: "P2",
+                name: "The Barkery",
+                category: "pet",
+                colorClass: "color-pet",
+                desc: "The Barkery Singapore is a home-grown pet bakery dedicated to producing nutritious food and treats for dogs. Its products are made using carefully selected, human-grade ingredients without unnecessary preservatives or artificial flavourings. Visitors can choose from biscuits, chews, freshly prepared meals and customised celebration cakes for special occasions. Located in the heart of Joo Chiat’s growing pet-care district, The Barkery is an enjoyable stop where owners can reward their pets with a tasty treat before continuing their exploration of the neighbourhood.",
+                img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSLvbni5s4IB09qkgRDiBuTWtU-FD2aVROOCxcj6TA5Ng&s=10"
+            },
+            {
+                id: "P3",
+                name: "The Dog Grocer",
+                category: "pet",
+                colorClass: "color-pet",
+                desc: "The Dog Grocer is a sustainable pet-food retailer offering natural treats, chews and other carefully selected products for dogs. The shop focuses on minimally processed ingredients and responsible packaging, making it particularly suitable for environmentally conscious pet owners. One of its most distinctive features is its bulk-bin section, which allows customers to purchase only the quantity they need and reduce packaging waste. Its welcoming retail space provides visitors with an opportunity to discover healthier pet products while learning more about sustainable pet care.",
+                img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQZYf59HsqlHRTH31WlMdkM2uGJ8gK2QnwGdNLK7rlUXQ&s=10"
+            },
+            {
+                id: "P4",
+                name: "Paw Mrkt",
+                category: "pet",
+                colorClass: "color-pet",
+                desc: "Paw Mrkt is a friendly neighbourhood pet store offering a carefully selected range of products for dogs and cats. Its shelves contain fresh food, treats, supplements, toys, walking accessories and other useful pet-care items. Rather than operating like a large chain store, Paw Mrkt provides a more personal shopping experience within Joo Chiat’s heritage surroundings. It is a practical stop for travellers who need additional supplies during their stay, while pets can also enjoy browsing the treats and toys available inside the store.",
+                img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTfG3nngD6MfQhpG7aNwBIDFlccivgXsDFlDnRSe4UUpA&s=10"
+            },
+            {
+                id: "P5",
+                name: "Common Man Coffee Roasters",
+                category: "pet",
+                colorClass: "color-pet",
+                desc: "Common Man Coffee Roasters is a popular specialty-coffee café housed inside a beautifully restored heritage shophouse. It serves a variety of handcrafted coffee, breakfast favourites and hearty brunch dishes in a comfortable setting that combines Joo Chiat’s traditional architecture with a modern café atmosphere. Pets are welcome at the outdoor seating area, where owners can take a break while watching the activity along Joo Chiat Road. Its central location makes it an accessible dining stop during a heritage walk with pets.",
+                img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSpcEa4d8WikWyb8mZY8NaFXHt_ejyP-mUHqUh0JlG7EQ&s=10"
+            },
+            {
+                id: "P6",
+                name: "Hello Arigato",
+                category: "pet",
+                colorClass: "color-pet",
+                desc: "Hello Arigato is a Japanese-inspired café known for its sandos, pasta dishes, brunch selections and creative beverages. The café has a warm and contemporary atmosphere that fits naturally among the colourful shophouses of Joo Chiat. Visitors travelling with pets can use its outdoor seating area, allowing them to enjoy a proper meal without leaving their furry companions behind. Its convenient location near several pet shops also makes it an ideal rest stop during a longer walk through the neighbourhood.",
+                img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRy75Y6Z1LBSNYWMGMjmv46aSCmC2RAMCzhbqsRzRZFbQ&s=10"
+            },
+            {
+                id: "P7",
+                name: "Kings Cart Coffee Factory",
+                category: "pet",
+                colorClass: "color-pet",
+                desc: "Kings Cart Coffee Factory is a cosy speciality café and coffee roastery located along Joo Chiat Road. It offers handcrafted coffee, creative local-inspired beverages and a varied menu of brunch dishes, pasta and light bites. Its shaded alfresco seating area is pet-friendly and equipped to provide a more comfortable break from Singapore’s warm weather. Visitors can enjoy a relaxing meal with their pets before continuing towards the nearby pet shops, heritage shophouses and other attractions found throughout Joo Chiat.",
+                img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSfv08PHblq9iMvHIfqKe1fUlCURi47MW2E_GhBBBw3jw&s=10"
+            },
+            {
+                id: "P8",
+                name: "Picotin Katong",
+                category: "pet",
+                colorClass: "color-pet",
+                desc: "Picotin Katong is a relaxed neighbourhood restaurant serving a broad mixture of Asian and Western dishes. Its casual atmosphere makes it suitable for families, groups of friends and tourists looking for a comfortable dining stop during their exploration of Joo Chiat. Pets are welcome in the outdoor dining area, where they can remain beside their owners throughout the meal. As the restaurant operates later than many cafés in the neighbourhood, it can also serve as a convenient evening stop for visitors completing a longer route.",
+                img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSwnOWnyXcXW44xsxmwVxZiF6M7xeIwKLiTcYuk9eGILg&s=10"
+            },
+            {
+                id: "P9",
+                name: "PRAIRIE",
+                category: "pet",
+                colorClass: "color-pet",
+                desc: "PRAIRIE by Craftsmen is a colourful and inviting café serving specialty coffee, pastries, all-day breakfast and a selection of Western-style dishes. The Joo Chiat outlet is especially recognisable for its calming blue exterior and spacious alfresco dining area. Pets are welcome outdoors, giving owners sufficient room to sit comfortably with their furry companions. Located close to Hotel Indigo, the café is an excellent starting or finishing point where hotel guests can enjoy breakfast or refreshments before returning from their neighbourhood walk.",
+                img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSBZ6y2kp5KDCTErIc7hw7E4yeo-W0XuxT8dau9KrEYkw&s=10"
+            },
+            {
+                id: "P10",
+                name: "Rooftop 88",
+                category: "pet",
+                colorClass: "color-pet",
+                desc: "Rooftop 88 is Hotel Indigo Singapore Katong's rooftop venue, offering panoramic views across the surrounding Katong and Joo Chiat neighbourhood. Its elevated setting provides hotel guests with a relaxing place to enjoy refreshments while taking in the neighbourhood skyline, particularly towards the end of the day. Guests staying under the hotel’s eligible pet package can bring their dogs along, subject to the hotel’s pet conditions. This makes Rooftop 88 a convenient final stop where visitors can unwind after completing their pet-friendly walking route .",
+                img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQoxrfSwUGjzQ1lnrHSUGfo5G-pfZU64A_TKSIHsaeuvA&s=10"
+            },
+        ];
+        const routeDetails = {
+            halfday: {
+                id: "Half-Day",
+                name: "Half-Day Route",
+                colorClass: "color-halfday",
+                desc: "This half-day route is recommended for travellers who would like to explore the Katong neighbourhood to a decent extent, but perhaps would like to spend the night doing something else, or experience most of the area without feeling rushed. It involves much less walking than the full-day route, with fewer locations, so that it can be realistically completed from the morning to mid-afternoon while still getting to experience and explore Peranakan and other cultures to some extent. \n\n If your stay at Hotel Indigo includes the breakfast package at Baba Chews, we recommend that you make use of the included half-buffet breakfast. Else, you may choose to have a hearty, local breakfast at 328 Katong Laksa instead, or perhaps grab something light from i12 Katong. Follow the suggested route to visit temples, museums and murals, to your liking. If any locations pique your interest, feel free to make a detour there, or skip other locations due to time constraints or interests. \n\n For lunch, you may dine at Mr & Mrs Mohgan Super Crispy Roti Prata, which has highly affordable but extremely delicious prata (Indian fried dough). Of course, you may dine to your own liking.",
+                img: "https://sg.tepcdn.com/public/usr/6xjasb/80cf82-BLD-THE-RED-HOUSE-AC-Copy.jpg" // Optional preview image for the route
+            },
+            fullday: {
+                id: "Full-Day",
+                name: "Full-Day Route",
+                colorClass: "color-fullday",
+                desc: "This full-day route is recommended for travellers who can afford to spend a full day experiencing the cultural heritage of Katong and Joo Chiat in their itinerary, exploring close to all attractions, shops and heritage sites in the Joo Chiat-Katong area. You will get to deeply explore and experience the unique Peranakan culture and more, all within a single day and a few kilometres of walking. \n\n If your stay at Hotel Indigo includes the breakfast package at Baba Chews, we recommend that you make use of the included half-buffet breakfast. Else, you may choose to have a hearty, local breakfast at 328 Katong Laksa instead. Follow the suggested route to visit temples, museums and murals, to your liking. If any locations pique your interest, feel free to make a detour there, or skip other locations due to time constraints or interests. \n\n You can eat at Guan Hoe Soon Restaurant for lunch and experience authentic Peranakan cuisine in the restaurant’s idyllic atmosphere, and at Sin Heng Claypot Bak Koot Teh for dinner, a restaurant in the Michelin Guide known for amazing claypot Bak Kut Teh with the perfect richness and mildness. Of course, you may dine to your own liking.",
+                img: "https://media.timeout.com/images/105819890/image.jpg"
+            },
+            petroute: {
+                id: "Pet Route",
+                name: "Pet-Friendly Trail",
+                colorClass: "color-petroute",
+                desc: "A specially curated trail connecting dog-friendly cafes, open parks, and pet boutiques in Katong.",
+                img: "https://picsum.photos/450/200?random=12"
+            }
+        };
+        // Custom ordered pathways for your itineraries using IDs
+        const halfDayRoute = ["A1", "A2", "A9", "M11", "A8", "F12", "M10", "M8", "M9", "A10", "M4", "M7", "A11", "M6", "M5", "A12", "A13", "M1", "M2"];
+        const fullDayRoute = ["A1", "F2", "A2", "A3", "A4", "M13", "F10", "A5", "A6", "A7", "A8", "M11", "A9", "M10", "M8", "M9", "A10", "M4", "M7", "F14", "A11", "M6", "M5", "A12", "A13", "M1", "M2"];
+        const petRoute = ["P1", "A1"]
+        // Map URL Dictionary
+        const mapUrls = {
+            0: "https://www.google.com/maps/d/u/0/embed?mid=1O8R2iXazYlO1zzcL6_EAKgxRWeeNMHQ&ehbc=2E312F", // None checked
+            1: "https://www.google.com/maps/d/u/0/embed?mid=1Vx1mcAKa1BvvmW25W-44QwxytE_Kg_E&ehbc=2E312F", // Only Attractions (1)
+            2: "https://www.google.com/maps/d/u/0/embed?mid=1fWF11lYz7cNp7-4fF9kB94mFdKaqgRw&ehbc=2E312F", // Only Murals (2)
+            3: "https://www.google.com/maps/d/u/0/embed?mid=1JvrfEuQbdfgfFiysEHKMHdK66fzml-8&ehbc=2E312F", // Attractions + Murals (1 + 2)
+            4: "https://www.google.com/maps/d/u/0/embed?mid=15kvJXj1J3yFKPzGPdLN-sSJYqGxqpKc&ehbc=2E312F", // Only Food (4)
+            5: "https://www.google.com/maps/d/u/0/embed?mid=1xc7OqMscgX4n-WX6JYzzwSaQcUwcymc&ehbc=2E312F", // Attractions + Food (1 + 4)
+            6: "https://www.google.com/maps/d/u/0/embed?mid=1abwiYqVwoUMmZcvddkGYtLnve0rcOcA&ehbc=2E312F", // Murals + Food (2 + 4)
+            7: "https://www.google.com/maps/d/u/0/embed?mid=1fue_eUXqnqhiOwT2H0CK53fKEh88gas&ehbc=2E312F", // All checked (1 + 2 + 4)};
+            8: "https://www.google.com/maps/d/u/0/embed?mid=177peSkgM_Zt3V0kredeE-8TksLbDH70&ehbc=2E312F",
+            9: "https://www.google.com/maps/d/u/0/embed?mid=1206wn2s8q3ljMQNL7xe_B29PG2GJ6uk&ehbc=2E312F",
+            10:"https://www.google.com/maps/d/u/0/embed?mid=1mTpHMVNQjg8MuKATcV0lB5iYwqA97wI&ehbc=2E312F",
+            11:"https://www.google.com/maps/d/u/0/embed?mid=10FgPibiPK9XqHrSoi5zecLVIkfrpzB8&ehbc=2E312F",
+            12:"https://www.google.com/maps/d/u/0/embed?mid=1X8ZzDy_2HOj4BLI3NKyQ1pqDt4E7HuA&ehbc=2E312F",
+            13:"https://www.google.com/maps/d/u/0/embed?mid=16wQKgNXpQcNkyhJ32LfEn_36sLKrdIs&ehbc=2E312F",
+            14:"https://www.google.com/maps/d/u/0/embed?mid=1XkXh0Q67LbTGVfABmY83JU86yB9q85k&ehbc=2E312F",
+            15:"https://www.google.com/maps/d/u/0/embed?mid=12uhx0Bxl20L0Sa8-3BlAGZfE_kzimw4&ehbc=2E312F"
+        }
+
+        // Global state variables to keep track of the active slideshow sequence
+        let currentSequence = [];
+        let currentIndex = -1;
+        const categorySequences = {
+            attractions: locations.filter(l => l.category === "attractions").map(l => l.id),
+            murals: locations.filter(l => l.category === "murals").map(l => l.id),
+            food: locations.filter(l => l.category === "food").map(l => l.id),
+            pet: locations.filter(l => l.category === "pet").map(l => l.id)
+        };
+        
+        // Initialize lists on layout draw
+        document.addEventListener("DOMContentLoaded", () => {
+            renderLocationsView();
+            renderRoutesView();
+            updateMap();
+        });
+
+        // 1. Render rows into the distinct categories
+        function renderLocationsView() {
+            locations.forEach(place => {
+                const targetContainer = document.getElementById(`list-${place.category}`);
+                if (targetContainer) {
+                    // Converts sequence array into a string format safely parsed by HTML attributes
+                    const seqString = JSON.stringify(categorySequences[place.category]).replace(/"/g, '&quot;');
+                    targetContainer.innerHTML += createLocationRow(place, seqString);
+                }
+            });
+        }
+
+        // 2. Render rows sequentially into routes using the route sequences
+        function renderRoutesView() {
+            const halfContainer = document.getElementById("route-halfday-content");
+            const fullContainer = document.getElementById("route-fullday-content");
+            const petContainer = document.getElementById("route-petroute-content");
+
+            // Clear existing inner HTML first
+            if (halfContainer) halfContainer.innerHTML = "";
+            if (fullContainer) fullContainer.innerHTML = "";
+            if (petContainer) petContainer.innerHTML = "";
+
+            const halfSeqString = JSON.stringify(halfDayRoute).replace(/"/g, '&quot;');
+            const fullSeqString = JSON.stringify(fullDayRoute).replace(/"/g, '&quot;');
+            const petSeqString = JSON.stringify(petRoute).replace(/"/g, '&quot;');
+
+            // Standardized SVG code for the pathway separator arrow
+            const svgArrow = `
+                <div class="route-arrow-container">
+                    <svg class="route-svg-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="19 8 12 15 5 8"></polyline>
+                    </svg>
+                </div>
+            `;
+
+            halfDayRoute.forEach((id, index) => {
+                const place = locations.find(l => l.id === id);
+                if (place) {
+                    halfContainer.innerHTML += createLocationRow(place, halfSeqString);
+                    // Injects the custom vector arrow between rows
+                    if (index < halfDayRoute.length - 1) halfContainer.innerHTML += svgArrow;
+                }
+            });
+
+            fullDayRoute.forEach((id, index) => {
+                const place = locations.find(l => l.id === id);
+                if (place) {
+                    fullContainer.innerHTML += createLocationRow(place, fullSeqString);
+                    // Injects the custom vector arrow between rows
+                    if (index < fullDayRoute.length - 1) fullContainer.innerHTML += svgArrow;
+                }
+            });
+
+            petRoute.forEach((id, index) => {
+                const place = locations.find(l => l.id === id);
+                if (place) {
+                    petContainer.innerHTML += createLocationRow(place, petSeqString);
+                    if (index < petRoute.length - 1) petContainer.innerHTML += svgArrow;
+                }
+            });
+        }
+
+        // Helper template builder
+        function createLocationRow(place, sequenceData) {
+            return `
+                <div class="location-row" onclick="openModal('${place.id}', '${sequenceData}')">
+                    <span class="id-badge ${place.colorClass}">${place.id}</span>
+                    <span class="loc-name">${place.name}</span>
+                </div>
+            `;
+        }
+
+        // Modal Action Logic
+        function openModal(id, sequenceJSON) {
+            const place = locations.find(l => l.id === id);
+            if (!place) return;
+
+            // FIX: Only overwrite the active sequence pool if new data is explicitly passed in
+            if (sequenceJSON) {
+                currentSequence = JSON.parse(sequenceJSON);
+                currentIndex = currentSequence.indexOf(id);
+            } else if (currentSequence.length > 0) {
+                // Keeps the existing slideshow list context intact, just updates the active row index
+                currentIndex = currentSequence.indexOf(id);
+            } else {
+                // Ultimate fallback safety net anchor
+                currentSequence = [id];
+                currentIndex = 0;
+            }
+
+            // Dynamic data binding
+            document.getElementById("modal-badge").className = `id-badge ${place.colorClass}`;
+            document.getElementById("modal-badge").innerText = place.id;
+            document.getElementById("modal-title").innerText = place.name;
+            document.getElementById("modal-desc").innerText = place.desc;
+            document.getElementById("modal-img").src = place.img;
+
+            updateNavButtons();
+            document.getElementById("popup-modal").classList.add("open");
+        }
+
+        // New Function: Slideshow mathematical offset stepping logic
+        function navigateModal(direction) {
+            const nextIndex = currentIndex + direction;
+            
+            // Bounds checking
+            if (nextIndex >= 0 && nextIndex < currentSequence.length) {
+                currentIndex = nextIndex;
+                const nextId = currentSequence[currentIndex];
+                
+                // Open the modal passing nothing to sequenceJSON to preserve currentSequence state context
+                openModal(nextId, null);
+            }
+        }
+
+        // New Function: Enforce button disabling limits
+        function updateNavButtons() {
+            const prevBtn = document.getElementById("modal-prev-btn");
+            const nextBtn = document.getElementById("modal-next-btn");
+
+            // Hide or disable navigation elements if it's a Route Header details view card 
+            if (currentSequence.length <= 1) {
+                prevBtn.style.display = "none";
+                nextBtn.style.display = "none";
+                return;
+            } else {
+                prevBtn.style.display = "flex";
+                nextBtn.style.display = "flex";
+            }
+
+            prevBtn.disabled = (currentIndex === 0);
+            nextBtn.disabled = (currentIndex === currentSequence.length - 1);
+        }
+
+        function closeModal(event, forceClose = false) {
+            if (forceClose || event.target.id === "popup-modal") {
+                document.getElementById("popup-modal").classList.remove("open");
+                currentSequence = [];
+                currentIndex = -1;
+            }
+        }
+
+        // Map updates
+        function updateMap() {
+            const attractions = document.getElementById('cat-attractions').checked ? 1 : 0;
+            const murals = document.getElementById('cat-murals').checked ? 2 : 0;
+            const food = document.getElementById('cat-food').checked ? 4 : 0;
+            const pet = document.getElementById('cat-pet').checked ? 8 : 0;
+            document.getElementById('map-embed').src = mapUrls[attractions + murals + food + pet];
+        }
+
+        // Navigation
+        function switchView(targetView) {
+            document.getElementById('view-locations').classList.toggle('hidden', targetView !== 'locations');
+            document.getElementById('view-routes').classList.toggle('hidden', targetView !== 'routes');
+            document.getElementById('tab-locations').classList.toggle('active', targetView === 'locations');
+            document.getElementById('tab-routes').classList.toggle('active', targetView === 'routes');
+        }
+
+        // Modal Action Logic for Routes
+        function openRouteModal(routeKey) {
+            const route = routeDetails[routeKey];
+            if (!route) return;
+
+            document.getElementById("modal-badge").className = `id-badge ${route.colorClass}`;
+            document.getElementById("modal-badge").innerText = route.id;
+            document.getElementById("modal-title").innerText = route.name;
+            document.getElementById("modal-desc").innerText = route.desc;
+            document.getElementById("modal-img").src = route.img;
+
+            document.getElementById("popup-modal").classList.add("open");
+        }
+    </script>
+</body>
+</html>
